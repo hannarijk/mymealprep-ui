@@ -1,8 +1,6 @@
-import type { ReactNode, ComponentProps } from "react";
 import { motion } from "framer-motion";
 import { ChefHat, Sparkles, ShoppingCart, ArrowRight, Check, Quote, Play, Save, GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppButton, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import {cn} from "@/lib/utils";
@@ -52,35 +50,6 @@ const pricing: Plan[] = [
 ];
 
 // ---------------------- Small UI atoms ----------------------
-type PrimaryCTAProps = ComponentProps<typeof Button> & { children: ReactNode };
-
-const PrimaryCTA = ({ className, children, ...props }: PrimaryCTAProps) => (
-    <Button
-        className={cn(
-            "rounded-lg bg-[#0B1529] hover:bg-[#0B1529]/90 text-white shadow-[0_2px_0_#0000000f,0_10px_30px_-10px_rgba(11,21,41,0.6)] px-5 h-12 text-base font-semibold inline-flex items-center gap-2",
-            className
-        )}
-        {...props}
-    >
-        {children}
-    </Button>
-);
-
-type SecondaryCTAProps = ComponentProps<typeof Button> & { children: ReactNode };
-
-const SecondaryCTA = ({ className, children, ...props }: SecondaryCTAProps) => (
-    <Button
-        variant="outline"
-        className={cn(
-            "rounded-lg bg-white hover:bg-white shadow-[0_1px_0_#0000000a,0_8px_24px_-10px_rgba(2,6,23,0.15)] border border-neutral-200 px-5 h-12 text-base font-semibold inline-flex items-center gap-2",
-            className
-        )}
-        {...props}
-    >
-        {children}
-    </Button>
-);
-
 function LovedBy() {
     return (
         <div className="mt-6 flex items-center gap-4 text-sm text-slate-500">
@@ -119,8 +88,8 @@ function Nav() {
                     <a href="#faq" className="hover:text-neutral-900">FAQ</a>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" className="rounded-lg h-10 px-3">Sign in</Button>
-                    <Button className="rounded-lg h-10 px-4 bg-[#0B1529] hover:bg-[#0B1529]/90 text-white shadow-[0_2px_0_#0000000f,0_10px_30px_-10px_rgba(11,21,41,0.6)]">Get started</Button>
+                    <AppButton intent="ghost" size="md">Sign in</AppButton>
+                    <AppButton intent="primary" size="md">Get started</AppButton>
                 </div>
             </Container>
         </div>
@@ -174,15 +143,14 @@ function WeekPreview() {
                                         <div className="text-xs text-neutral-500">{r.tag}</div>
                                     </div>
                                 </div>
-                                <Button
-                                    data-reco-title={r.title}
+                                <AppButton
+                                    intent="outline"
                                     size="sm"
-                                    variant="outline"
-                                    className="rounded-lg h-8 px-3 pointer-events-none opacity-60"
+                                    className="pointer-events-none opacity-60"
                                     disabled
                                 >
                                     Add
-                                </Button>
+                                </AppButton>
                             </li>
                         ))}
                     </ul>
@@ -190,19 +158,14 @@ function WeekPreview() {
             </div>
 
             {/* Bottom CTA (visual only; disabled) */}
-            <div className="mt-6 pointer-events-none" data-preview-cta>
+            <div className="mt-6 pointer-events-none">
                 <div className="flex gap-3">
-                    <Button className="rounded-lg h-10 px-4 bg-neutral-100 text-neutral-700 border border-neutral-200 shadow-sm" disabled>
+                    <AppButton intent="outline" size="md" className="opacity-60" disabled>
                         Generate grocery list
-                    </Button>
-                    <Button
-                        data-week-smartfill
-                        variant="outline"
-                        className="rounded-lg h-10 px-4 bg-white text-neutral-700 border border-neutral-200 shadow-sm inline-flex items-center gap-2"
-                        disabled
-                    >
+                    </AppButton>
+                    <AppButton intent="outline" size="md" className="opacity-60" disabled>
                         <Sparkles className="w-4 h-4" /> Smart fill
-                    </Button>
+                    </AppButton>
                 </div>
             </div>
         </div>
@@ -220,8 +183,12 @@ function Hero() {
                     </motion.h1>
                     <p className="mt-5 max-w-prose text-neutral-600">Two simple buckets—Breakfasts and Lunch/Dinner. Auto‑create groceries, save, share, and collect feedback without the clutter.</p>
                     <div className="mt-8 flex gap-4">
-                        <PrimaryCTA>Start free <ArrowRight className="w-4 h-4"/></PrimaryCTA>
-                        <SecondaryCTA>Watch 60s demo <Play className="w-4 h-4"/></SecondaryCTA>
+                        <AppButton intent="primary" size="lg">
+                            Start free <ArrowRight className="w-4 h-4"/>
+                        </AppButton>
+                        <AppButton intent="secondary" size="lg">
+                            Watch 60s demo <Play className="w-4 h-4"/>
+                        </AppButton>
                     </div>
                     <LovedBy />
                 </div>
@@ -292,8 +259,12 @@ function Demo() {
                     <h2 className="text-xl md:text-2xl font-semibold tracking-tight">See MyMealPrep in action</h2>
                     <p className="text-neutral-500 mt-3 text-lg">This 60‑second tour shows planning, automatic grocery lists, and prep mode. No signup required.</p>
                     <div className="mt-6 flex gap-3">
-                        <PrimaryCTA>Try free <ArrowRight className="w-4 h-4"/></PrimaryCTA>
-                        <SecondaryCTA>Watch demo <Play className="w-4 h-4" /></SecondaryCTA>
+                        <AppButton intent="primary" size="lg">
+                            Try free <ArrowRight className="w-4 h-4"/>
+                        </AppButton>
+                        <AppButton intent="secondary" size="lg">
+                            Watch demo <Play className="w-4 h-4" />
+                        </AppButton>
                     </div>
                 </div>
                 <div className="rounded-3xl bg-neutral-900 text-white aspect-video flex items-center justify-center shadow-lg">
@@ -314,7 +285,9 @@ function PricingCard({ plan }: PricingCardProps) {
             <div className="flex items-center justify-between">
                 <div className="text-2xl font-semibold">{plan.name}</div>
                 {plan.badge && (
-                    <div className={`text-xs px-3 py-1 rounded-full ${isPro ? 'bg-[#0B1529] text-white' : 'bg-white border shadow-sm text-slate-700'}`}>{plan.badge}</div>
+                    <div className={`text-xs px-3 py-1 rounded-full ${isPro ? 'bg-[#0B1529] text-white' : 'bg-white border shadow-sm text-slate-700'}`}>
+                        {plan.badge}
+                    </div>
                 )}
             </div>
             <div className="mt-4 text-4xl font-bold">{plan.price}<span className="text-lg font-normal text-neutral-500">{plan.period}</span></div>
@@ -327,7 +300,9 @@ function PricingCard({ plan }: PricingCardProps) {
                 ))}
             </ul>
             <div className="mt-8">
-                <Button className={`w-full h-12 rounded-lg font-semibold ${isPro ? 'bg-[#0B1529] text-white hover:bg-[#0B1529]/90' : 'bg-[#0B1529] text-white hover:bg-[#0B1529]/90'}`}>{isPro ? 'Go Pro' : 'Get started'}</Button>
+                <AppButton intent="primary" size="lg" className="w-full">
+                    {isPro ? 'Go Pro' : 'Get started'}
+                </AppButton>
             </div>
         </div>
     );
