@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { motion } from "framer-motion";
 import { ChefHat, Sparkles, ShoppingCart, ArrowRight, Check, Quote, Play, Save, GripVertical } from "lucide-react";
 import { AppButton, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
+import { AuthModal } from "@/components/auth/AuthModal";
 import {cn} from "@/lib/utils";
 
 // ---------------------- Content Data ----------------------
@@ -32,7 +34,7 @@ type Plan = {
     features: string[];
 };
 
-type PricingCardProps = { plan: Plan };
+//type PricingCardProps = { plan: Plan };
 
 const pricing: Plan[] = [
     { name: "Free", price: "€0", period: "/mo", badge: "No credit card", features: [
@@ -73,7 +75,7 @@ function LabelChip() {
 }
 
 // ---------------------- Layout Sections ----------------------
-function Nav() {
+function Nav({ onSignIn, onGetStarted }: { onSignIn: () => void; onGetStarted: () => void }) {
     return (
         <div className="sticky top-0 z-40 w-full backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b">
             <Container className="py-3 flex items-center justify-between">
@@ -88,8 +90,8 @@ function Nav() {
                     <a href="#faq" className="hover:text-neutral-900">FAQ</a>
                 </div>
                 <div className="flex items-center gap-2">
-                    <AppButton intent="ghost" size="md">Sign in</AppButton>
-                    <AppButton intent="primary" size="md">Get started</AppButton>
+                    <AppButton intent="ghost" size="md" onClick={onSignIn}>Sign in</AppButton>
+                    <AppButton intent="primary" size="md" onClick={onGetStarted}>Get started</AppButton>
                 </div>
             </Container>
         </div>
@@ -172,7 +174,7 @@ function WeekPreview() {
     );
 }
 
-function Hero() {
+function Hero({ onStartFree }: { onStartFree: () => void }) {
     return (
         <Section background="gradient" padding="xl">
             <Container className="grid lg:grid-cols-2 gap-12 items-center">
@@ -183,7 +185,7 @@ function Hero() {
                     </motion.h1>
                     <p className="mt-5 max-w-prose text-neutral-600">Two simple buckets—Breakfasts and Lunch/Dinner. Auto‑create groceries, save, share, and collect feedback without the clutter.</p>
                     <div className="mt-8 flex gap-4">
-                        <AppButton intent="primary" size="lg">
+                        <AppButton intent="primary" size="lg" onClick={onStartFree}>
                             Start free <ArrowRight className="w-4 h-4"/>
                         </AppButton>
                         <AppButton intent="secondary" size="lg">
@@ -251,7 +253,7 @@ function HowItWorks() {
     );
 }
 
-function Demo() {
+function Demo({ onTryFree }: { onTryFree: () => void }) {
     return (
         <Section background="neutral-50" padding="xl">
             <Container className="grid lg:grid-cols-2 gap-12 items-center">
@@ -259,7 +261,7 @@ function Demo() {
                     <h2 className="text-xl md:text-2xl font-semibold tracking-tight">See MyMealPrep in action</h2>
                     <p className="text-neutral-500 mt-3 text-lg">This 60‑second tour shows planning, automatic grocery lists, and prep mode. No signup required.</p>
                     <div className="mt-6 flex gap-3">
-                        <AppButton intent="primary" size="lg">
+                        <AppButton intent="primary" size="lg" onClick={onTryFree}>
                             Try free <ArrowRight className="w-4 h-4"/>
                         </AppButton>
                         <AppButton intent="secondary" size="lg">
@@ -278,7 +280,7 @@ function Demo() {
     );
 }
 
-function PricingCard({ plan }: PricingCardProps) {
+function PricingCard({ plan, onGetStarted, onGoPro }: { plan: Plan; onGetStarted: () => void; onGoPro: () => void }) {
     const isPro = plan.name === "Pro";
     return (
         <div className={`rounded-[24px] p-6 md:p-8 border relative overflow-hidden ${isPro ? 'bg-gradient-to-br from-slate-50 to-slate-100' : 'bg-white'} shadow-sm`}>
@@ -300,7 +302,12 @@ function PricingCard({ plan }: PricingCardProps) {
                 ))}
             </ul>
             <div className="mt-8">
-                <AppButton intent="primary" size="lg" className="w-full">
+                <AppButton
+                    intent="primary"
+                    size="lg"
+                    className="w-full"
+                    onClick={isPro ? onGoPro : onGetStarted}
+                >
                     {isPro ? 'Go Pro' : 'Get started'}
                 </AppButton>
             </div>
@@ -308,7 +315,7 @@ function PricingCard({ plan }: PricingCardProps) {
     );
 }
 
-function Pricing() {
+function Pricing({ onGetStarted, onGoPro }: { onGetStarted: () => void; onGoPro: () => void }) {
     return (
         <Section id="pricing" background="white" padding="xl">
             <Container>
@@ -318,7 +325,12 @@ function Pricing() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
                     {pricing.map((plan) => (
-                        <PricingCard key={plan.name} plan={plan} />
+                        <PricingCard
+                            key={plan.name}
+                            plan={plan}
+                            onGetStarted={onGetStarted}
+                            onGoPro={onGoPro}
+                        />
                     ))}
                 </div>
             </Container>
@@ -374,7 +386,7 @@ function FAQ() {
     );
 }
 
-function Footer() {
+function Footer({ onSignIn }: { onSignIn: () => void }) {
     return (
         <footer className="w-full border-t py-10 bg-white">
             <Container className="flex items-center justify-between">
@@ -386,7 +398,12 @@ function Footer() {
                     <a className="hover:text-slate-900" href="#">Privacy</a>
                     <a className="hover:text-slate-900" href="#">Terms</a>
                     <a className="hover:text-slate-900" href="#">Contact</a>
-                    <a className="hover:text-slate-900" href="#">Sign in</a>
+                    <button
+                        className="hover:text-slate-900"
+                        onClick={onSignIn}
+                    >
+                        Sign in
+                    </button>
                 </nav>
             </Container>
         </footer>
@@ -394,17 +411,40 @@ function Footer() {
 }
 
 export default function PublicLanding() {
+    const [authModal, setAuthModal] = useState<{
+        isOpen: boolean;
+        mode: 'login' | 'signup';
+    }>({
+        isOpen: false,
+        mode: 'login',
+    });
+
+    const openAuthModal = (mode: 'login' | 'signup') => {
+        setAuthModal({ isOpen: true, mode });
+    };
+
+    const closeAuthModal = () => {
+        setAuthModal({ isOpen: false, mode: 'login' });
+    };
+
     return (
         <div className="min-h-screen w-full bg-white text-neutral-900">
-            <Nav />
-            <Hero />
+            <Nav onSignIn={() => openAuthModal('login')} onGetStarted={() => openAuthModal('signup')} />
+            <Hero onStartFree={() => openAuthModal('signup')} />
             <Features />
             <HowItWorks />
-            <Demo />
-            <Pricing />
+            <Demo onTryFree={() => openAuthModal('signup')} />
+            <Pricing onGetStarted={() => openAuthModal('signup')} onGoPro={() => openAuthModal('signup')} />
             <Reviews />
             <FAQ />
-            <Footer />
+            <Footer onSignIn={() => openAuthModal('login')} />
+
+            {/* Auth Modal */}
+            <AuthModal
+                isOpen={authModal.isOpen}
+                onClose={closeAuthModal}
+                initialMode={authModal.mode}
+            />
         </div>
     );
 }
