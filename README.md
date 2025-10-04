@@ -152,7 +152,7 @@ mymealprep-ui/
 |------------|---------------------------------------------------|
 | npm run dev | Start development server at http://localhost:5173 |
 | npm run build | Build for production (outputs to dist/)           | 
-| npm run preview | Preview production build locally at at http://localhost:4173 |
+| npm run preview | Preview production build locally at http://localhost:4173 |
 | npm run lint | Run ESLint for code quality checks                | 
 
 ## Contributing
@@ -168,7 +168,7 @@ git checkout -b feature/your-feature-name
 * Use TypeScript for type safety
 * Add JSDoc comments for complex logic
 
-**Adding New Components:**
+Adding New Components:
 ```
 # Using shadcn/ui CLI (recommended for UI components)
 npx shadcn@latest add [component-name]
