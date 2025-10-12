@@ -21,7 +21,16 @@
 
 ## Overview
 
-MyMealPrep UI is a component-driven **React + TypeScript + Vite** application. It powers both the public landing experience and interactive **MyMealPrep** platform — a tool that helps users upload recipe, plan regular menus, generate grocery lists, and share menus and recipes with others.
+MyMealPrep UI is a frontend **React + TypeScript + Vite** app used by MyMealPrep full-featured meal planning platform **MyMealPrep**. The UI powers both the public landing experience and interactive dashboard for **MyMealPrep** platform users.
+
+The UI contains:
+
+- Landing Page
+- Internal Dashboard with 4 tabs: Planner, Recipes, History, Grocery
+- Smart Fill & Shuffle features for menus and recipes
+- Recipe library with filters
+- Grocery list generation
+- Week history & sharing
 
 ## Features
 
