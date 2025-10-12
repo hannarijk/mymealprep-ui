@@ -21,7 +21,7 @@
 
 ## Overview
 
-MyMealPrep UI is a frontend **React + TypeScript + Vite** app used by MyMealPrep full-featured meal planning platform **MyMealPrep**. The UI powers both the public landing experience and interactive dashboard for **MyMealPrep** platform users.
+MyMealPrep UI is a frontend **React + TypeScript + Vite** app used by full-featured meal planning platform **MyMealPrep**. The UI powers both the public landing experience and interactive dashboard for **MyMealPrep** platform users.
 
 The UI contains:
 
