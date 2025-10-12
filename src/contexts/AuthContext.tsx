@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     /**
      * Check if stored token is valid on app load
      *
-     * Big Tech Pattern: Silent authentication check
+     * Silent authentication check
      * - User refreshes page → should stay logged in
      * - Token expired → logout automatically
      * - No token → show landing page
