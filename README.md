@@ -112,8 +112,6 @@ mymealprep-ui/
 │   │       └── index.ts
 │   ├── config/              # Configuration
 │   │   └── env.ts           # Environment config & validation
-│   ├── hooks/               # Custom React hooks
-│   │   └── useAuth.ts       # Authentication hook
 │   ├── lib/                 # Utility functions
 │   │   └── utils.ts         # Common utilities (cn, etc.)
 │   ├── pages/               # Page components

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppButton } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -13,6 +14,7 @@ export function LoginForm({ onSuccess, onSwitchToSignup }: AuthFormProps) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { login, isLoading } = useAuth();
+    const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,7 +22,8 @@ export function LoginForm({ onSuccess, onSwitchToSignup }: AuthFormProps) {
 
         try {
             await login(email, password);
-            onSuccess?.();
+            onSuccess?.();  // Close modal
+            navigate('/dashboard');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed');
         }
@@ -93,6 +96,7 @@ export function SignupForm({ onSuccess, onSwitchToLogin }: AuthFormProps) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { register, isLoading } = useAuth();
+    const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -100,7 +104,8 @@ export function SignupForm({ onSuccess, onSwitchToLogin }: AuthFormProps) {
 
         try {
             await register(email, password);
-            onSuccess?.();
+            onSuccess?.();  // Close modal
+            navigate('/dashboard');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Registration failed');
         }

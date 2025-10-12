@@ -1,4 +1,5 @@
-import { config } from '@/config/env';
+import {apiClient} from './apiClient';
+import {AxiosError} from 'axios';
 
 export interface LoginRequest {
     email: string;
@@ -28,40 +29,59 @@ export interface ApiError {
     message: string;
 }
 
-class AuthService {
-    private async makeRequest<T>(
-        endpoint: string,
-        options: RequestInit
-    ): Promise<T> {
-        const response = await fetch(`${config.apiBaseUrl}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
-            ...options,
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'An error occurred');
-        }
-
-        return data;
+/**
+ * Extract error message from various error types
+ */
+function getErrorMessage(error: unknown, fallback: string): string {
+    // Axios error with response from backend
+    if (error instanceof AxiosError) {
+        return error.response?.data?.message || fallback;
     }
 
+    // Standard JavaScript Error
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    // Unknown error type - use fallback
+    return fallback;
+}
+
+/**
+ * AuthService - Authentication API calls
+ *
+ * Service layer with axios client
+ * - Uses apiClient for all HTTP requests
+ * - Token automatically injected by interceptor
+ * - Type-safe error handling (no 'any' types)
+ */
+class AuthService {
+
     async login(credentials: LoginRequest): Promise<AuthResponse> {
-        return this.makeRequest<AuthResponse>('/login', {
-            method: 'POST',
-            body: JSON.stringify(credentials),
-        });
+        try {
+            const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
+            return response.data;
+        } catch (error: unknown) {
+            throw new Error(getErrorMessage(error, 'Login failed'));
+        }
     }
 
     async register(userData: RegisterRequest): Promise<AuthResponse> {
-        return this.makeRequest<AuthResponse>('/register', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-        });
+        try {
+            const response = await apiClient.post<AuthResponse>('/auth/register', userData);
+            return response.data;
+        } catch (error: unknown) {
+            throw new Error(getErrorMessage(error, 'Registration failed'));
+        }
+    }
+
+    async get<T>(endpoint: string): Promise<T> {
+        try {
+            const response = await apiClient.get<T>(endpoint);
+            return response.data;
+        } catch (error: unknown) {
+            throw new Error(getErrorMessage(error, 'Request failed'));
+        }
     }
 }
 
