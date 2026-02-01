@@ -17,6 +17,34 @@ export interface APIRecipeResponse {
     updated_at: string;
 }
 
+export interface APIIngredientResponse {
+    id: number;
+    name: string;
+    description?: string;
+    category?: string;
+    created_at: string;
+}
+
+export interface APIRecipeIngredientResponse {
+    id?: number;
+    recipe_id: number;
+    ingredient_id: number;
+    quantity: number;
+    unit: string;
+    notes?: string;
+    ingredient: APIIngredientResponse;
+}
+
+export interface APIRecipeWithIngredientsResponse {
+    id: number;
+    name: string;
+    description?: string;
+    category_id?: number;
+    created_at: string;
+    updated_at: string;
+    ingredients: APIRecipeIngredientResponse[];
+}
+
 export interface RecipeCategory {
     id: number;
     name: string;
@@ -34,6 +62,28 @@ export interface Recipe {
     updatedAt: Date;
 }
 
+export interface Ingredient {
+    id: number;
+    name: string;
+    description?: string;
+    category?: string;
+    createdAt: Date;
+}
+
+export interface RecipeIngredient {
+    id?: number;
+    recipeId: number;
+    ingredientId: number;
+    quantity: number;
+    unit: string;
+    notes?: string;
+    ingredient: Ingredient;
+}
+
+export interface RecipeWithIngredients extends Recipe {
+    ingredients: RecipeIngredient[];
+}
+
 export interface CategoryServiceError {
     message: string;
     statusCode?: number;
@@ -41,7 +91,7 @@ export interface CategoryServiceError {
 }
 
 class RecipeService {
-    async getAll(): Promise<RecipeCategory[]> {
+    async getAllRecipeCategories(): Promise<RecipeCategory[]> {
         try {
             const response = await apiClient.get<APIRecipeCategoryResponse[]>('/categories');
             return response.data.map(this.transformCategory);
@@ -59,6 +109,15 @@ class RecipeService {
         }
     }
 
+    async getRecipesByCategoryWithIngredients(categoryId: number): Promise<RecipeWithIngredients[]> {
+        try {
+            const response = await apiClient.get<APIRecipeWithIngredientsResponse[]>(`/categories/${categoryId}/recipes?include_ingredients=true`);
+            return response.data.map(this.transformRecipeWithIngredients)
+        } catch (error) {
+            throw this.handleError(error, 'Failed to load category recipes with ingredients');
+        }
+    }
+
     async getAllRecipes(): Promise<Recipe[]> {
         try {
             const response = await apiClient.get<APIRecipeResponse[]>('/recipes');
@@ -71,16 +130,39 @@ class RecipeService {
     async getRecipeById(recipeId: number): Promise<Recipe> {
         try {
             const response = await apiClient.get<APIRecipeResponse>(`/recipes/${recipeId}`);
-            return response.data.map(this.transformRecipe);
+            return this.transformRecipe(response.data);
         } catch (error) {
-            throw this.handleError(error, 'Failed to load recipee');
+            throw this.handleError(error, 'Failed to load recipe');
         }
     }
 
-    /**
-     * Transform backend category to frontend format
-     * Handles: snake_case → camelCase, string dates → Date objects
-     */
+    async getRecipeByIdWithIngredients(recipeId: number): Promise<RecipeWithIngredients> {
+        try {
+            const response = await apiClient.get<APIRecipeWithIngredientsResponse>(`/recipes/${recipeId}?include_ingredients=true`);
+            return this.transformRecipeWithIngredients(response.data);
+        } catch (error) {
+            throw this.handleError(error, 'Failed to load recipe with ingredients');
+        }
+    }
+
+    async getRecipeIngredients(recipeId: number): Promise<RecipeIngredient[]> {
+        try {
+            const response = await apiClient.get<APIRecipeIngredientResponse[]>(`/recipes/${recipeId}/ingredients`);
+            return response.data.map(this.transformRecipeIngredient);
+        } catch (error) {
+            throw this.handleError(error, 'Failed to load recipe ingredients');
+        }
+    }
+
+    async getIngredients(): Promise<Ingredient[]> {
+        try {
+            const response = await apiClient.get<APIIngredientResponse[]>('/ingredients');
+            return response.data.map(this.transformIngredient);
+        } catch (error) {
+            throw this.handleError(error, 'Failed to load ingredients');
+        }
+    }
+
     private transformCategory(apiCategory: APIRecipeCategoryResponse): RecipeCategory {
         return {
             id: apiCategory.id,
@@ -91,10 +173,6 @@ class RecipeService {
         };
     }
 
-    /**
-     * Transform backend recipe to frontend format
-     * Handles: snake_case → camelCase, string dates → Date objects
-     */
     private transformRecipe(apiRecipe: APIRecipeResponse): Recipe {
         return {
             id: apiRecipe.id,
@@ -103,6 +181,40 @@ class RecipeService {
             categoryId: apiRecipe.category_id,
             createdAt: new Date(apiRecipe.created_at),
             updatedAt: new Date(apiRecipe.updated_at)
+        };
+    }
+
+    private transformIngredient(ingredient: APIIngredientResponse): Ingredient {
+        return {
+            id: ingredient.id,
+            name: ingredient.name,
+            description: ingredient.description,
+            category: ingredient.category,
+            createdAt: new Date(ingredient.created_at),
+        };
+    }
+
+    private transformRecipeIngredient(apiRecipeIngredient: APIRecipeIngredientResponse): RecipeIngredient {
+        return {
+            id: apiRecipeIngredient.id,
+            recipeId: apiRecipeIngredient.recipe_id,
+            ingredientId: apiRecipeIngredient.ingredient_id,
+            quantity: apiRecipeIngredient.quantity,
+            unit: apiRecipeIngredient.unit,
+            notes: apiRecipeIngredient.notes,
+            ingredient: this.transformIngredient(apiRecipeIngredient.ingredient)
+        };
+    }
+
+    private transformRecipeWithIngredients(recipe: APIRecipeWithIngredientsResponse): RecipeWithIngredients {
+        return {
+            id: recipe.id,
+            name: recipe.name,
+            description: recipe.description,
+            categoryId: recipe.category_id,
+            createdAt: new Date(recipe.created_at),
+            updatedAt: new Date(recipe.updated_at),
+            ingredients: recipe.ingredients.map(this.transformRecipeIngredient)
         };
     }
 

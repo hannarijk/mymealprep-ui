@@ -1,17 +1,3 @@
-/**
- * RecipeTest - Test Component for Fresh Category Service
- *
- * Tests Step 1 of MVP: Categories API
- *
- * This component will verify:
- * ✅ categoryService.getAll() works
- * ✅ categoryService.getRecipesByCategory() works
- * ✅ Data transformation (snake_case → camelCase) works
- * ✅ Date parsing works
- * ✅ Error handling works
- * ✅ Backend communication through Kong Gateway works
- */
-
 import React, {useEffect, useState} from 'react';
 import {type Recipe, type RecipeCategory, recipeService} from '@/services/recipeService.ts';
 
@@ -33,7 +19,7 @@ const RecipeTest: React.FC = () => {
 
                 console.log('🚀 RecipeTest: Starting fresh categories test...');
 
-                const categoriesData = await recipeService.getAll();
+                const categoriesData = await recipeService.getAllRecipeCategories();
 
                 console.log('✅ RecipeTest: Categories loaded successfully:', categoriesData);
 
