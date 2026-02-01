@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { authService, type AuthResponse } from '@/services/authService';
+import {createContext, type ReactNode, useContext, useEffect, useState} from 'react';
+import {type AuthResponse, authService} from '@/services/authService.ts';
 
 /**
  * AuthContext - Centralized authentication state management
@@ -34,7 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * 3. Persists token in localStorage
  * 4. Validates token on app load
  */
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({children}: { children: ReactNode }) {
     const [user, setUser] = useState<AuthResponse['user'] | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true); // Start true - checking token
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
 
         try {
-            const response = await authService.login({ email, password });
+            const response = await authService.login({email, password});
 
             // Persist token (survives page refresh)
             localStorage.setItem('token', response.token);
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
 
         try {
-            const response = await authService.register({ email, password });
+            const response = await authService.register({email, password});
 
             localStorage.setItem('token', response.token);
             setToken(response.token);

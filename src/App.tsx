@@ -26,3 +26,11 @@ export default function App() {
         </BrowserRouter>
     );
 }
+
+/*import RecipeTest from '@/components/test/RecipeTest';
+
+function App() {
+    return <RecipeTest />;
+}
+
+export default App;*/
