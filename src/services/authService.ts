@@ -75,6 +75,15 @@ class AuthService {
         }
     }
 
+    async me(): Promise<User> {
+        try {
+            const response = await apiClient.get<User>('/auth/me');
+            return response.data;
+        } catch (error: unknown) {
+            throw new Error(getErrorMessage(error, 'Failed to fetch current user'));
+        }
+    }
+
     async get<T>(endpoint: string): Promise<T> {
         try {
             const response = await apiClient.get<T>(endpoint);

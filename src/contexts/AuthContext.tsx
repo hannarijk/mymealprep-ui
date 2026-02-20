@@ -47,14 +47,19 @@ export function AuthProvider({children}: { children: ReactNode }) {
      * - Token expired → logout automatically
      * - No token → show landing page
      */
-    const checkAuth = () => {
+    const checkAuth = async () => {
         const storedToken = localStorage.getItem('token');
 
         if (storedToken) {
-            // TODO: In production, validate token with backend
-            // For now, trust the token exists
-            setToken(storedToken);
-            // Note: We don't have user info yet, would need /me endpoint
+            try {
+                setToken(storedToken);
+                const user = await authService.me();
+                setUser(user);
+            } catch {
+                // Token is expired or invalid — clear it
+                localStorage.removeItem('token');
+                setToken(null);
+            }
         }
 
         setIsLoading(false);

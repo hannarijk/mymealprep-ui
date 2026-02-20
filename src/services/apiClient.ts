@@ -74,9 +74,8 @@ apiClient.interceptors.response.use(
         // Handle different error scenarios
 
         if (error.response?.status === 401) {
-            // Token invalid or expired
-            // Future: Could auto-logout here
-            console.error('Authentication failed - token may be expired');
+            localStorage.removeItem('token');
+            window.location.href = '/';
         }
 
         if (error.response?.status === 403) {
