@@ -23,28 +23,10 @@ export interface AuthResponse {
     user: User;
 }
 
-export interface ApiError {
-    error: string;
-    code: number;
+export interface AuthServiceError {
     message: string;
-}
-
-/**
- * Extract error message from various error types
- */
-function getErrorMessage(error: unknown, fallback: string): string {
-    // Axios error with response from backend
-    if (error instanceof AxiosError) {
-        return error.response?.data?.message || fallback;
-    }
-
-    // Standard JavaScript Error
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    // Unknown error type - use fallback
-    return fallback;
+    statusCode?: number;
+    code?: string;
 }
 
 /**
@@ -62,7 +44,7 @@ class AuthService {
             const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
             return response.data;
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error, 'Login failed'));
+            throw this.handleError(error, 'Login failed');
         }
     }
 
@@ -71,7 +53,7 @@ class AuthService {
             const response = await apiClient.post<AuthResponse>('/auth/register', userData);
             return response.data;
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error, 'Registration failed'));
+            throw this.handleError(error, 'Registration failed');
         }
     }
 
@@ -80,7 +62,7 @@ class AuthService {
             const response = await apiClient.get<User>('/auth/me');
             return response.data;
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error, 'Failed to fetch current user'));
+            throw this.handleError(error, 'Failed to fetch current user');
         }
     }
 
@@ -89,8 +71,34 @@ class AuthService {
             const response = await apiClient.get<T>(endpoint);
             return response.data;
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error, 'Request failed'));
+            throw this.handleError(error, 'Request failed');
         }
+    }
+
+    private handleError(error: unknown, fallbackMessage: string): AuthServiceError {
+        let message = fallbackMessage;
+        let statusCode: number | undefined;
+        let code: string | undefined;
+
+        if (error instanceof AxiosError) {
+            if (error.response) {
+                statusCode = error.response.status;
+                message = error.response.data?.message || error.response.data?.error || fallbackMessage;
+                code = error.response.data?.code;
+            } else if (error.request) {
+                message = 'Network error - unable to connect to server';
+            } else {
+                message = error.message || fallbackMessage;
+            }
+        } else if (error instanceof Error) {
+            message = error.message;
+        }
+
+        const serviceError = new Error(message) as Error & AuthServiceError;
+        serviceError.statusCode = statusCode;
+        serviceError.code = code;
+
+        return serviceError;
     }
 }
 
