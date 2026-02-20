@@ -52,13 +52,12 @@ export function AuthProvider({children}: { children: ReactNode }) {
 
         if (storedToken) {
             try {
-                setToken(storedToken);
                 const user = await authService.me();
+                setToken(storedToken);
                 setUser(user);
             } catch {
                 // Token is expired or invalid — clear it
                 localStorage.removeItem('token');
-                setToken(null);
             }
         }
 
