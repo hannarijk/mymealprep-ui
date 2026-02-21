@@ -42,8 +42,9 @@ import {recipeService} from "@/services/recipeService.ts";
 import {useRecipes} from "@/features/recipes/useRecipes.ts";
 import {useQueryClient} from "@tanstack/react-query";
 import type {DepartmentGroup, Recipe} from "@/features/recipes/types.ts";
+import {generateGroceryList} from "@/features/grocery/groceryService.ts";
+import type {GroceryListItem} from "@/features/grocery/types.ts";
 
-const DEFAULT_DEPARTMENTS = ["Produce", "Meat & Fish", "Dairy & Eggs", "Pantry"];
 
 // ---------------------- Helper Functions ----------------------
 function slugify(str: string) {
@@ -65,25 +66,6 @@ function convertIngredientsToDepartments(ingredients: Awaited<ReturnType<typeof 
     return Object.entries(deptMap).map(([name, items]) => ({name, items}));
 }
 
-function consolidateGroceriesFromIds(recipeIds: string[], recipes: Recipe[]) {
-    const result: Record<string, Array<{ name: string; qty: number; unit?: string }>> = {};
-    for (const id of recipeIds) {
-        const recipe = recipes.find((r) => r.id === id);
-        if (!recipe) continue;
-        for (const dept of recipe.departments) {
-            if (!result[dept.name]) result[dept.name] = [];
-            for (const item of dept.items) {
-                const existing = result[dept.name].find((x) => x.name === item.name);
-                if (existing) {
-                    existing.qty += item.qty;
-                } else {
-                    result[dept.name].push({...item});
-                }
-            }
-        }
-    }
-    return result;
-}
 
 // ---------------------- Sub-Components ----------------------
 function Chip({active, onClick, children}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -287,37 +269,32 @@ function SectionTitle({title}: { title: string }) {
     );
 }
 
-function DepartmentList({name, items, onRemoveItem}: {
+function DepartmentList({name, items, onRemove}: {
     name: string;
-    items: Array<{ name: string; qty: number; unit?: string }>;
-    onRemoveItem: (dept: string, itemName: string) => void
+    items: GroceryListItem[];
+    onRemove: (ingredientId: number) => void;
 }) {
-    if (!items || items.length === 0) return null;
+    if (items.length === 0) return null;
     return (
-        <Card>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base">{name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-1 text-sm">
-                    {items.map((item, idx) => (
-                        <li key={idx} className="flex items-center justify-between group">
-              <span>
-                {item.name} - {item.qty} {item.unit || ""}
-              </span>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                                onClick={() => onRemoveItem(name, item.name)}
-                            >
-                                <Trash2 className="h-3 w-3"/>
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
-            </CardContent>
-        </Card>
+        <div>
+            <p className="text-sm font-semibold mb-1">{name}</p>
+            <Separator className="mb-2"/>
+            <ul className="space-y-1 text-sm">
+                {items.map((item) => (
+                    <li key={item.ingredientId} className="flex items-center justify-between group py-0.5">
+                        <span>{item.ingredient.name} — {item.totalQuantity} {item.unit}</span>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                            onClick={() => onRemove(item.ingredientId)}
+                        >
+                            <Trash2 className="h-3 w-3"/>
+                        </Button>
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }
 
@@ -448,8 +425,9 @@ export default function Dashboard() {
     const [sortBy, setSortBy] = useState("relevance");
     const [fsOpen, setFsOpen] = useState(false);
 
-    const [groceries, setGroceries] = useState<Record<string, Array<{ name: string; qty: number; unit?: string }>>>({});
-    const [removedGroceryItems, setRemovedGroceryItems] = useState<Set<string>>(new Set());
+    const [groceries, setGroceries] = useState<GroceryListItem[]>([]);
+    const [removedIngredientIds, setRemovedIngredientIds] = useState<Set<number>>(new Set());
+    const [isGeneratingGroceries, setIsGeneratingGroceries] = useState(false);
 
     const [weekStart, setWeekStart] = useState("2025-10-06");
     const [weekEnd, setWeekEnd] = useState("2025-10-12");
@@ -536,29 +514,26 @@ export default function Dashboard() {
         setActiveTab("planner");
     }
 
-    function generateGroceries() {
-        const allIds = [...breakfastList, ...mainList];
-        const consolidated = consolidateGroceriesFromIds(allIds, recipes);
-        const filtered: typeof consolidated = {};
-        for (const dept in consolidated) {
-            filtered[dept] = consolidated[dept].filter((item) => !removedGroceryItems.has(`${dept}::${item.name}`));
-        }
-        setGroceries(filtered);
+    async function generateGroceries() {
+        const allIds = [...breakfastList, ...mainList].map(Number);
+        if (allIds.length === 0) return;
+        setIsGeneratingGroceries(true);
         setActiveTab("grocery");
+        try {
+            const items = await generateGroceryList(allIds);
+            setGroceries(items);
+            setRemovedIngredientIds(new Set());
+        } finally {
+            setIsGeneratingGroceries(false);
+        }
     }
 
-    function removeGroceryItem(dept: string, itemName: string) {
-        setRemovedGroceryItems((prev) => new Set(prev).add(`${dept}::${itemName}`));
-        setGroceries((prev) => {
-            const copy = {...prev};
-            copy[dept] = copy[dept].filter((item) => item.name !== itemName);
-            return copy;
-        });
+    function removeGroceryItem(ingredientId: number) {
+        setRemovedIngredientIds(prev => new Set(prev).add(ingredientId));
     }
 
     function resetGroceryRemovals() {
-        setRemovedGroceryItems(new Set());
-        generateGroceries();
+        setRemovedIngredientIds(new Set());
     }
 
     const handleLogout = () => {
@@ -802,10 +777,22 @@ export default function Dashboard() {
                                         <Button size="sm">Share</Button>
                                     </div>
                                 </div>
-                                {DEFAULT_DEPARTMENTS.map((dept) => (
-                                    <DepartmentList key={dept} name={dept} items={groceries[dept]}
-                                                    onRemoveItem={removeGroceryItem}/>
-                                ))}
+                                {isGeneratingGroceries ? (
+                                    <p className="text-sm text-muted-foreground py-4">Generating grocery list...</p>
+                                ) : groceries.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground italic py-4">No items yet. Add recipes to your planner and click Create Grocery List.</p>
+                                ) : (() => {
+                                    const visible = groceries.filter(item => !removedIngredientIds.has(item.ingredientId));
+                                    const categories = [...new Set(visible.map(item => item.ingredient.category || 'Other'))];
+                                    return categories.map(cat => (
+                                        <DepartmentList
+                                            key={cat}
+                                            name={cat}
+                                            items={visible.filter(item => (item.ingredient.category || 'Other') === cat)}
+                                            onRemove={removeGroceryItem}
+                                        />
+                                    ));
+                                })()}
                             </div>
                             <div className="space-y-4">
                                 <Card>
