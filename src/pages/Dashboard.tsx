@@ -1,4 +1,4 @@
-import {type ChangeEvent, useMemo, useState} from "react";
+import {type ChangeEvent, useEffect, useMemo, useState} from "react";
 import {
     CalendarDays,
     Check,
@@ -38,76 +38,10 @@ import {Switch} from "@/components/ui/switch";
 import {Avatar, AvatarFallback} from "@/components/ui/avatar";
 import {useAuth} from "@/contexts/AuthContext";
 import {useNavigate} from "react-router-dom";
-
-// ---------------------- Mock Data ----------------------
-const MOCK_RECIPES = [
-    {
-        id: "r1",
-        title: "Lemon Garlic Chicken",
-        rating: 4.8,
-        tags: ["quick", "protein", "dinner"],
-        lastCookedWeeksAgo: 10,
-        liked: true,
-        departments: [
-            {name: "Produce", items: [{name: "Lemon", qty: 2}, {name: "Garlic", qty: 4}, {name: "Parsley", qty: 1}]},
-            {name: "Meat & Fish", items: [{name: "Chicken thighs", qty: 6}]},
-            {name: "Pantry", items: [{name: "Olive oil", qty: 1}, {name: "Salt", qty: 1}, {name: "Pepper", qty: 1}]},
-        ],
-    },
-    {
-        id: "r2",
-        title: "Veggie Pasta Primavera",
-        rating: 4.5,
-        tags: ["vegetarian", "quick"],
-        lastCookedWeeksAgo: 5,
-        liked: true,
-        departments: [
-            {name: "Produce", items: [{name: "Cherry tomatoes", qty: 400, unit: "g"}, {name: "Zucchini", qty: 2}]},
-            {name: "Pantry", items: [{name: "Pasta", qty: 500, unit: "g"}]},
-            {name: "Dairy & Eggs", items: [{name: "Parmesan", qty: 1}]},
-        ],
-    },
-    {
-        id: "r3", title: "Tofu Stir Fry", rating: 4.6, tags: ["vegan", "budget"], lastCookedWeeksAgo: 1, liked: false,
-        departments: [
-            {name: "Produce", items: [{name: "Broccoli", qty: 2}, {name: "Bell pepper", qty: 2}]},
-            {name: "Pantry", items: [{name: "Soy sauce", qty: 1}, {name: "Rice", qty: 1}]},
-            {name: "Meat & Fish", items: [{name: "Tofu block", qty: 1}]},
-        ],
-    },
-    {
-        id: "r4",
-        title: "Overnight Oats",
-        rating: 4.9,
-        tags: ["breakfast", "quick", "budget"],
-        lastCookedWeeksAgo: 2,
-        liked: true,
-        departments: [
-            {name: "Pantry", items: [{name: "Oats", qty: 200, unit: "g"}]},
-            {name: "Dairy & Eggs", items: [{name: "Milk", qty: 1}]},
-            {name: "Produce", items: [{name: "Banana", qty: 2}]},
-        ],
-    },
-    {
-        id: "r5", title: "Chickpea Curry", rating: 4.7, tags: ["vegan", "dinner"], lastCookedWeeksAgo: 3, liked: false,
-        departments: [
-            {name: "Pantry", items: [{name: "Chickpeas (canned)", qty: 2}, {name: "Curry powder", qty: 1}]},
-            {name: "Produce", items: [{name: "Onion", qty: 2}, {name: "Tomato", qty: 3}]},
-        ],
-    },
-    {
-        id: "r6",
-        title: "Salmon & Veggies",
-        rating: 4.9,
-        tags: ["protein", "quick", "dinner"],
-        lastCookedWeeksAgo: 6,
-        liked: true,
-        departments: [
-            {name: "Meat & Fish", items: [{name: "Salmon fillets", qty: 4}]},
-            {name: "Produce", items: [{name: "Asparagus", qty: 1}, {name: "Lemon", qty: 1}]},
-        ],
-    },
-];
+import {recipeService} from "@/services/recipeService.ts";
+import {useRecipes} from "@/features/recipes/useRecipes.ts";
+import {useQueryClient} from "@tanstack/react-query";
+import type {DepartmentGroup, Recipe} from "@/features/recipes/types.ts";
 
 const DEFAULT_DEPARTMENTS = ["Produce", "Meat & Fish", "Dairy & Eggs", "Pantry"];
 
@@ -121,10 +55,20 @@ function pickRandom<T>(arr: T[], count: number): T[] {
     return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
-function consolidateGroceriesFromIds(recipeIds: string[]) {
+function convertIngredientsToDepartments(ingredients: Awaited<ReturnType<typeof recipeService.getRecipeByIdWithIngredients>>['ingredients']): DepartmentGroup[] {
+    const deptMap: Record<string, Array<{ name: string; qty: number; unit?: string }>> = {};
+    for (const ri of ingredients) {
+        const dept = ri.ingredient.category || "Other";
+        if (!deptMap[dept]) deptMap[dept] = [];
+        deptMap[dept].push({name: ri.ingredient.name, qty: ri.quantity, unit: ri.unit});
+    }
+    return Object.entries(deptMap).map(([name, items]) => ({name, items}));
+}
+
+function consolidateGroceriesFromIds(recipeIds: string[], recipes: Recipe[]) {
     const result: Record<string, Array<{ name: string; qty: number; unit?: string }>> = {};
     for (const id of recipeIds) {
-        const recipe = MOCK_RECIPES.find((r) => r.id === id);
+        const recipe = recipes.find((r) => r.id === id);
         if (!recipe) continue;
         for (const dept of recipe.departments) {
             if (!result[dept.name]) result[dept.name] = [];
@@ -153,24 +97,27 @@ function Chip({active, onClick, children}: { active: boolean; onClick: () => voi
     );
 }
 
-interface Recipe {
-    id: string;
-    title: string;
-    rating: number;
-    tags: string[];
-    lastCookedWeeksAgo: number;
-    liked: boolean;
-    departments: Array<{ name: string; items: Array<{ name: string; qty: number; unit?: string }> }>;
-}
 
-function RecipeRow({recipe, onAddBreakfast, onAddMain}: {
+function RecipeRow({recipe, onAddBreakfast, onAddMain, onIngredientsLoaded}: {
     recipe: Recipe;
     onAddBreakfast: (id: string) => void;
-    onAddMain: (id: string) => void
+    onAddMain: (id: string) => void;
+    onIngredientsLoaded?: (id: string, departments: DepartmentGroup[]) => void;
 }) {
     const [open, setOpen] = useState(false);
     const [published, setPublished] = useState(false);
     const [liked, setLiked] = useState(recipe.liked);
+    const [ingredientsLoading, setIngredientsLoading] = useState(false);
+
+    useEffect(() => {
+        if (open && recipe.departments.length === 0 && !ingredientsLoading) {
+            setIngredientsLoading(true);
+            recipeService.getRecipeByIdWithIngredients(Number(recipe.id))
+                .then(r => onIngredientsLoaded?.(recipe.id, convertIngredientsToDepartments(r.ingredients)))
+                .catch(() => {})
+                .finally(() => setIngredientsLoading(false));
+        }
+    }, [open]);
 
     return (
         <>
@@ -180,10 +127,12 @@ function RecipeRow({recipe, onAddBreakfast, onAddMain}: {
                         <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{recipe.title}</div>
                             <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  <Star className="h-3 w-3 fill-yellow-400 stroke-yellow-400"/>
-                    {recipe.rating}
-                </span>
+                                {recipe.rating != null && recipe.rating > 0 && (
+                                    <span className="flex items-center gap-0.5">
+                                        <Star className="h-3 w-3 fill-yellow-400 stroke-yellow-400"/>
+                                        {recipe.rating}
+                                    </span>
+                                )}
                                 {recipe.tags.slice(0, 2).map((tag) => (
                                     <Badge key={tag} variant="secondary" className="text-xs">
                                         {tag}
@@ -236,18 +185,24 @@ function RecipeRow({recipe, onAddBreakfast, onAddMain}: {
                     <div className="mt-6 space-y-4">
                         <div>
                             <h3 className="font-medium mb-2">Ingredients</h3>
-                            {recipe.departments.map((dept) => (
-                                <div key={dept.name} className="mb-3">
-                                    <div className="text-sm font-medium text-muted-foreground">{dept.name}</div>
-                                    <ul className="list-disc pl-5 text-sm">
-                                        {dept.items.map((item, idx) => (
-                                            <li key={idx}>
-                                                {item.name} - {item.qty} {item.unit || ""}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
+                            {ingredientsLoading ? (
+                                <p className="text-sm text-muted-foreground">Loading ingredients...</p>
+                            ) : recipe.departments.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No ingredients listed.</p>
+                            ) : (
+                                recipe.departments.map((dept) => (
+                                    <div key={dept.name} className="mb-3">
+                                        <div className="text-sm font-medium text-muted-foreground">{dept.name}</div>
+                                        <ul className="list-disc pl-5 text-sm">
+                                            {dept.items.map((item, idx) => (
+                                                <li key={idx}>
+                                                    {item.name} - {item.qty} {item.unit || ""}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))
+                            )}
                         </div>
 
                         <Separator/>
@@ -278,14 +233,14 @@ function RecipeRow({recipe, onAddBreakfast, onAddMain}: {
     );
 }
 
-function BucketList({ids, onRemove}: { ids: string[]; onRemove: (id: string) => void }) {
+function BucketList({ids, recipes, onRemove}: { ids: string[]; recipes: Recipe[]; onRemove: (id: string) => void }) {
     if (ids.length === 0) {
         return <div className="text-sm text-muted-foreground italic">No recipes added yet.</div>;
     }
     return (
         <div className="grid sm:grid-cols-2 gap-3">
             {ids.map((id) => {
-                const recipe = MOCK_RECIPES.find((r) => r.id === id);
+                const recipe = recipes.find((r) => r.id === id);
                 if (!recipe) return null;
                 return (
                     <Card key={id} className="relative group">
@@ -366,15 +321,16 @@ function DepartmentList({name, items, onRemoveItem}: {
     );
 }
 
-function HistoryCardLarge({menu, publicUrl, onTogglePublic, onLoad}: {
+function HistoryCardLarge({menu, recipes, publicUrl, onTogglePublic, onLoad}: {
     menu: { week: string; breakfastIds: string[]; mainIds: string[]; isPublic: boolean };
+    recipes: Recipe[];
     publicUrl?: string;
     onTogglePublic: (week: string, val: boolean) => void;
     onLoad: (week: string) => void
 }) {
     const [copied, setCopied] = useState(false);
-    const breakfastTitles = menu.breakfastIds.map((id) => MOCK_RECIPES.find((r) => r.id === id)?.title).filter(Boolean) as string[];
-    const mainTitles = menu.mainIds.map((id) => MOCK_RECIPES.find((r) => r.id === id)?.title).filter(Boolean) as string[];
+    const breakfastTitles = menu.breakfastIds.map((id) => recipes.find((r) => r.id === id)?.title).filter(Boolean) as string[];
+    const mainTitles = menu.mainIds.map((id) => recipes.find((r) => r.id === id)?.title).filter(Boolean) as string[];
 
     const handleCopy = () => {
         if (publicUrl) {
@@ -474,26 +430,16 @@ export default function Dashboard() {
     const {user, logout} = useAuth();
     const navigate = useNavigate();
 
+    const queryClient = useQueryClient();
+    const {data: recipes = [], isLoading: isLoadingRecipes, error: recipesError} = useRecipes();
+
     const [activeTab, setActiveTab] = useState("planner");
     const [query, setQuery] = useState("");
     const [weekLabel, setWeekLabel] = useState("Week of Oct 6-12, 2025");
 
-    const [savedMenus, setSavedMenus] = useState([
-        {
-            week: "Week of Sep 22-28, 2025",
-            breakfastIds: ["r4"],
-            mainIds: ["r1", "r2", "r6"],
-            isPublic: true,
-            slug: "sep-22-28-2025"
-        },
-        {
-            week: "Week of Sep 29-Oct 5, 2025",
-            breakfastIds: ["r4"],
-            mainIds: ["r3", "r5"],
-            isPublic: false,
-            slug: "sep-29-oct-5-2025"
-        },
-    ]);
+    const [savedMenus, setSavedMenus] = useState<Array<{
+        week: string; breakfastIds: string[]; mainIds: string[]; isPublic: boolean; slug: string;
+    }>>([]);
 
     const [breakfastList, setBreakfastList] = useState<string[]>([]);
     const [mainList, setMainList] = useState<string[]>([]);
@@ -507,6 +453,12 @@ export default function Dashboard() {
 
     const [weekStart, setWeekStart] = useState("2025-10-06");
     const [weekEnd, setWeekEnd] = useState("2025-10-12");
+
+    function handleIngredientsLoaded(id: string, departments: DepartmentGroup[]) {
+        queryClient.setQueryData<Recipe[]>(['recipes'], prev =>
+            prev?.map(r => r.id === id ? {...r, departments} : r) ?? []
+        );
+    }
 
     const baseFilter = (r: Recipe) => {
         if (filters.breakfast && !r.tags.includes("breakfast")) return false;
@@ -522,13 +474,13 @@ export default function Dashboard() {
     };
 
     const filteredAndSorted = useMemo(() => {
-        let arr = MOCK_RECIPES.filter(baseFilter);
+        let arr = recipes.filter(baseFilter);
         if (query) {
             arr = arr.filter((r) => r.title.toLowerCase().includes(query.toLowerCase()));
         }
         arr.sort(sortFns[sortBy] || sortFns.relevance);
         return arr;
-    }, [query, filters, sortBy]);
+    }, [query, filters, sortBy, recipes]);
 
     function addBreakfast(id: string) {
         setBreakfastList((p) => (p.includes(id) ? p : [...p, id]));
@@ -586,7 +538,7 @@ export default function Dashboard() {
 
     function generateGroceries() {
         const allIds = [...breakfastList, ...mainList];
-        const consolidated = consolidateGroceriesFromIds(allIds);
+        const consolidated = consolidateGroceriesFromIds(allIds, recipes);
         const filtered: typeof consolidated = {};
         for (const dept in consolidated) {
             filtered[dept] = consolidated[dept].filter((item) => !removedGroceryItems.has(`${dept}::${item.name}`));
@@ -631,10 +583,10 @@ export default function Dashboard() {
                                 variant="outline"
                                 className="gap-2"
                                 onClick={() => {
-                                    const breakfasts = MOCK_RECIPES.filter((r) => r.tags.includes("breakfast"));
-                                    const mains = MOCK_RECIPES.filter((r) => !r.tags.includes("breakfast"));
-                                    setBreakfastList(pickRandom(breakfasts.length ? breakfasts : MOCK_RECIPES, 2).map((r) => r.id));
-                                    setMainList(pickRandom(mains.length ? mains : MOCK_RECIPES, 6).map((r) => r.id));
+                                    const breakfasts = recipes.filter((r) => r.tags.includes("breakfast"));
+                                    const mains = recipes.filter((r) => !r.tags.includes("breakfast"));
+                                    setBreakfastList(pickRandom(breakfasts.length ? breakfasts : recipes, 2).map((r) => r.id));
+                                    setMainList(pickRandom(mains.length ? mains : recipes, 6).map((r) => r.id));
                                 }}
                             >
                                 <Sparkles className="h-4 w-4"/> Smart Fill
@@ -709,12 +661,12 @@ export default function Dashboard() {
                                 <Separator/>
 
                                 <SectionTitleWithIcon icon={Sandwich} title="Breakfast"/>
-                                <BucketList ids={breakfastList} onRemove={(id) => removeFromBreakfast(id)}/>
+                                <BucketList ids={breakfastList} recipes={recipes} onRemove={(id) => removeFromBreakfast(id)}/>
 
                                 <Separator/>
 
                                 <SectionTitleWithIcon icon={Utensils} title="Lunch + Dinner"/>
-                                <BucketList ids={mainList} onRemove={(id) => removeFromMain(id)}/>
+                                <BucketList ids={mainList} recipes={recipes} onRemove={(id) => removeFromMain(id)}/>
 
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     <Button className="gap-2" onClick={generateGroceries}>
@@ -748,9 +700,13 @@ export default function Dashboard() {
 
                                 <ScrollArea className="h-[600px]">
                                     <div className="space-y-2 pr-4">
-                                        {filteredAndSorted.map((r) => (
+                                        {isLoadingRecipes ? (
+                                            <p className="text-sm text-muted-foreground py-4">Loading recipes...</p>
+                                        ) : recipesError ? (
+                                            <p className="text-sm text-destructive py-4">Failed to load recipes.</p>
+                                        ) : filteredAndSorted.map((r) => (
                                             <RecipeRow key={r.id} recipe={r} onAddBreakfast={addBreakfast}
-                                                       onAddMain={addMain}/>
+                                                       onAddMain={addMain} onIngredientsLoaded={handleIngredientsLoaded}/>
                                         ))}
                                     </div>
                                 </ScrollArea>
@@ -775,11 +731,18 @@ export default function Dashboard() {
                                     <Filter className="h-4 w-4"/>
                                 </Button>
                             </div>
-                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredAndSorted.map((r) => (
-                                    <RecipeRow key={r.id} recipe={r} onAddBreakfast={addBreakfast} onAddMain={addMain}/>
-                                ))}
-                            </div>
+                            {isLoadingRecipes ? (
+                                <p className="text-sm text-muted-foreground py-4">Loading recipes...</p>
+                            ) : recipesError ? (
+                                <p className="text-sm text-destructive py-4">Failed to load recipes.</p>
+                            ) : (
+                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {filteredAndSorted.map((r) => (
+                                        <RecipeRow key={r.id} recipe={r} onAddBreakfast={addBreakfast}
+                                                   onAddMain={addMain} onIngredientsLoaded={handleIngredientsLoaded}/>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -814,6 +777,7 @@ export default function Dashboard() {
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                                     {savedMenus.map((m) => (
                                         <HistoryCardLarge key={`hist-tab-${m.week}`} menu={m}
+                                                          recipes={recipes}
                                                           publicUrl={publicUrlHelper(m.slug)}
                                                           onTogglePublic={togglePublic} onLoad={loadFromHistory}/>
                                     ))}
