@@ -1,5 +1,17 @@
 import {apiClient} from './apiClient.ts';
 
+export interface PaginationMeta {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+}
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    pagination: PaginationMeta;
+}
+
 export interface APIRecipeCategoryResponse {
     id: number;
     name: string;
@@ -102,8 +114,8 @@ class RecipeService {
 
     async getRecipesByCategory(categoryId: number): Promise<Recipe[]> {
         try {
-            const response = await apiClient.get<APIRecipeResponse[]>(`/categories/${categoryId}/recipes`);
-            return response.data.map(this.transformRecipe);
+            const response = await apiClient.get<PaginatedResponse<APIRecipeResponse>>(`/categories/${categoryId}/recipes`);
+            return response.data.data.map(this.transformRecipe);
         } catch (error) {
             throw this.handleError(error, `Failed to load recipes for category`);
         }
@@ -111,8 +123,8 @@ class RecipeService {
 
     async getRecipesByCategoryWithIngredients(categoryId: number): Promise<RecipeWithIngredients[]> {
         try {
-            const response = await apiClient.get<APIRecipeWithIngredientsResponse[]>(`/categories/${categoryId}/recipes?include_ingredients=true`);
-            return response.data.map(this.transformRecipeWithIngredients)
+            const response = await apiClient.get<PaginatedResponse<APIRecipeWithIngredientsResponse>>(`/categories/${categoryId}/recipes?include_ingredients=true`);
+            return response.data.data.map(this.transformRecipeWithIngredients);
         } catch (error) {
             throw this.handleError(error, 'Failed to load category recipes with ingredients');
         }
@@ -120,8 +132,8 @@ class RecipeService {
 
     async getAllRecipes(): Promise<Recipe[]> {
         try {
-            const response = await apiClient.get<APIRecipeResponse[]>('/recipes');
-            return response.data.map(this.transformRecipe);
+            const response = await apiClient.get<PaginatedResponse<APIRecipeResponse>>('/recipes');
+            return response.data.data.map(this.transformRecipe);
         } catch (error) {
             throw this.handleError(error, 'Failed to load recipes');
         }
@@ -156,8 +168,8 @@ class RecipeService {
 
     async getIngredients(): Promise<Ingredient[]> {
         try {
-            const response = await apiClient.get<APIIngredientResponse[]>('/ingredients');
-            return response.data.map(this.transformIngredient);
+            const response = await apiClient.get<PaginatedResponse<APIIngredientResponse>>('/ingredients');
+            return response.data.data.map(this.transformIngredient);
         } catch (error) {
             throw this.handleError(error, 'Failed to load ingredients');
         }
